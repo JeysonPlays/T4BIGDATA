@@ -1,0 +1,118 @@
+// ==========================================
+// 1. CONSULTAS BÁSICAS (CRUD)
+// ==========================================
+
+// --- Inserción de Documento (Colección Clientes) ---
+// Se inserta un nuevo cliente "Elena Garces"
+db.clientes.insertOne({
+    nombre: "Elena Garces",
+    email: "elena.g@nuevo.com",
+    telefono: "3015551100",
+    fecha_registro: new Date(),
+    direccion: {
+        carrera: "5",
+        calle: "90-40",
+        ciudad: "Bogotá"
+    }
+});
+
+// --- Selección de Documentos (Colección Productos) ---
+// Buscar productos cuya categoría contenga la palabra "Herramientas" (case insensitive)
+db.productos.find({ 
+    categoria_id: { $regex: /Herramientas/i } 
+});
+
+// --- Actualización de Documento (Colección Productos) ---
+// Actualizar precio y stock del "Martillo de Uña Curva"
+db.productos.updateOne(
+    { nombre: "Martillo de Uña Curva" },
+    { $set: { precio_actual: 27000.00, stock: 140 } }
+);
+
+// --- Eliminación de Documento (Colección Productos) ---
+// Eliminar el producto con nombre "Lija de Grano Fino (P120)"
+db.productos.deleteOne({ 
+    nombre: "Lija de Grano Fino (P120)" 
+});
+
+
+// ==========================================
+// 2. CONSULTAS CON FILTROS Y OPERADORES
+// ==========================================
+
+// --- Filtro con Operador Lógico $and ---
+// Productos con stock menor a 100 Y precio actual menor a 100.000
+db.productos.find({
+    $and: [
+        { stock: { $lt: 100 } },
+        { precio_actual: { $lt: 100000.00 } }
+    ]
+});
+
+// --- Filtro de Rango ($gt y $lt) ---
+// Ventas con total facturado mayor a 25.000 y menor a 50.000
+db.ventas.find({
+    total_facturado: { $gt: 25000, $lt: 50000 }
+});
+
+// --- Filtro de Conjunto ($in) ---
+// Clientes que residen en Bogotá, Medellín o Cali
+db.clientes.find({
+    "direccion.ciudad": { $in: ["Cali", "Barranquilla"] }
+});
+
+
+// ==========================================
+// 3. CONSULTAS DE AGREGACIÓN (ESTADÍSTICAS)
+// ==========================================
+
+// --- Clientes registrados por año ---
+// Agrupa por año de registro y cuenta el total de clientes
+db.clientes.aggregate([
+    {
+        $group: {
+            _id: { $year: "$fecha_registro" },
+            total_clientes_registrados: { $sum: 1 }
+        }
+    },
+    { $sort: { _id: 1 } }
+]);
+
+// --- Estadísticas de Precios por Categoría ---
+// Calcula el precio promedio y el precio mínimo por categoría
+db.productos.aggregate([
+    {
+        $group: {
+            _id: "$categoria_id",
+            precio_promedio: { $avg: "$precio_actual" },
+            min_precio: { $min: "$precio_actual" }
+        }
+    },
+    {
+        $project: {
+            precio_promedio: { $round: ["$precio_promedio", 2] },
+            min_precio: 1,
+            categoria: "$_id",
+            _id: 0
+        }
+    }
+]);
+
+// --- Total de Stock por Categoría ---
+// Suma el stock total por categoría y ordena 
+db.productos.aggregate([
+    {
+        $group: {
+            _id: "$categoria_id",
+            total_unidades_e_stock: { $sum: "$stock" }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            categoria_id: "$_id",
+            total_stock: 1
+        }
+    },
+    { $sort: { total_unidades_en_stock: -1 } }
+]);
